@@ -1,17 +1,26 @@
-version: '3.8'
-
+version: '3'
 services:
-  spark:
-    build: .
-    container_name: spark-streaming
-    volumes:
-      - .:/app
-    working_dir: /app
-    command: ["python", "app.py"]
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
     environment:
-      - PYSPARK_PYTHON=python
+      ZOOKEEPER_CLIENT_PORT: 2181
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
     depends_on:
-      - spark-master
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:29092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    ports:
+      - "29092:29092"
 
   spark-master:
     image: bitnami/spark:latest
@@ -27,5 +36,48 @@ services:
     environment:
       - SPARK_MODE=worker
       - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=1G
+      - SPARK_WORKER_CORES=1
     depends_on:
       - spark-master
+
+  spark:
+    build:
+      context: .
+      dockerfile: dockerfile.spark_stream
+    container_name: spark-streaming
+    volumes:
+      - .:/app
+      - ~/.ivy2:/root/.ivy2
+    working_dir: /app
+    command: ["python", "spark_stream.py"]
+    environment:
+      - PYSPARK_PYTHON=python3
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - SPARK_SUBMIT_PACKAGES=org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0
+    depends_on:
+      - kafka
+      - spark-master
+
+  fake_producer:
+    build:
+      context: .
+      dockerfile: dockerfile.fake_producer
+    container_name: fake_producer
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    depends_on:
+      - kafka
+    restart: on-failure
+
+  baseline:
+    build:
+      context: .
+      dockerfile: dockerfile.baseline_stream
+    container_name: baseline-stream
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    depends_on:
+      - kafka
+      - fake_producer
+    restart: on-failure
