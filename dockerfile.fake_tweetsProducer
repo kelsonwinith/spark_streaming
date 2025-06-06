@@ -6,10 +6,11 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
-COPY fake_producer.py .
+# Copy application code and data
+COPY fake_tweetsProducer.py .
+COPY fake_tweets.json .
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 
-CMD ["python", "fake_producer.py"]
+CMD ["python", "fake_tweetsProducer.py"]

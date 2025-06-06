@@ -7,9 +7,9 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
-COPY baseline_stream.py .
+COPY stream_baseline.py .
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 
-CMD ["python", "baseline_stream.py"] 
+CMD ["python", "stream_baseline.py"] 

@@ -44,40 +44,39 @@ services:
   spark:
     build:
       context: .
-      dockerfile: dockerfile.spark_stream
-    container_name: spark-streaming
+      dockerfile: dockerfile.stream_spark
+    container_name: stream_spark
     volumes:
       - .:/app
       - ~/.ivy2:/root/.ivy2
     working_dir: /app
-    command: ["python", "spark_stream.py"]
+    command: ["python", "stream_spark.py"]
     environment:
       - PYSPARK_PYTHON=python3
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - SPARK_SUBMIT_PACKAGES=org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0
     depends_on:
       - kafka
-      - spark-master
 
-  fake_producer:
+  baseline:
     build:
       context: .
-      dockerfile: dockerfile.fake_producer
-    container_name: fake_producer
+      dockerfile: dockerfile.stream_baseline
+    container_name: stream_baseline
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
     depends_on:
       - kafka
     restart: on-failure
 
-  baseline:
+  fake_producer:
     build:
       context: .
-      dockerfile: dockerfile.baseline_stream
-    container_name: baseline-stream
+      dockerfile: dockerfile.fake_tweetsProducer
+    container_name: fake_producer
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
     depends_on:
-      - kafka
-      - fake_producer
+      - baseline
+      - spark
     restart: on-failure
