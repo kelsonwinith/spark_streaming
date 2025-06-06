@@ -11,6 +11,9 @@ spark = SparkSession.builder \
     .config("spark.driver.memory", "4g") \
     .config("spark.sql.shuffle.partitions", "8") \
     .config("spark.streaming.kafka.maxRatePerPartition", "100000") \
+    .config("spark.eventLog.enabled", "true") \
+    .config("spark.eventLog.dir", "/opt/spark/logs") \
+    .config("spark.history.fs.logDirectory", "/opt/spark/logs") \
     .getOrCreate()
 
 # Set log level to ERROR to reduce noise

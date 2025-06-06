@@ -24,20 +24,49 @@ services:
 
   spark-master:
     image: bitnami/spark:latest
+    container_name: spark-master
     environment:
       - SPARK_MODE=master
       - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_MASTER_WEBUI_PORT=8080
+      - SPARK_LOG_DIR=/opt/spark/logs
+      - SPARK_MASTER_LOG=/opt/spark/logs/spark-master.out
     ports:
       - "7077:7077"
       - "8080:8080"
+    volumes:
+      - spark-logs:/opt/spark/logs
 
   spark-worker:
     image: bitnami/spark:latest
+    container_name: spark-worker
     environment:
       - SPARK_MODE=worker
       - SPARK_MASTER_URL=spark://spark-master:7077
       - SPARK_WORKER_MEMORY=1G
       - SPARK_WORKER_CORES=1
+      - SPARK_WORKER_WEBUI_PORT=8081
+      - SPARK_LOG_DIR=/opt/spark/logs
+      - SPARK_WORKER_LOG=/opt/spark/logs/spark-worker.out
+    ports:
+      - "8081:8081"
+    volumes:
+      - spark-logs:/opt/spark/logs
+    depends_on:
+      - spark-master
+
+  spark-history-server:
+    image: bitnami/spark:latest
+    container_name: spark-history-server
+    environment:
+      - SPARK_MODE=master
+      - SPARK_MASTER_DISABLED=true
+      - SPARK_DAEMON_MEMORY=1G
+      - SPARK_HISTORY_OPTS=-Dspark.history.ui.port=18080 -Dspark.history.fs.logDirectory=/opt/spark/logs -Dspark.history.retainedApplications=50
+    ports:
+      - "18080:18080"
+    volumes:
+      - spark-logs:/opt/spark/logs
     depends_on:
       - spark-master
 
@@ -49,14 +78,20 @@ services:
     volumes:
       - .:/app
       - ~/.ivy2:/root/.ivy2
+      - spark-logs:/opt/spark/logs
     working_dir: /app
     command: ["python", "stream_spark.py"]
     environment:
       - PYSPARK_PYTHON=python3
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - SPARK_SUBMIT_PACKAGES=org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0
+      - SPARK_LOG_DIR=/opt/spark/logs
+    ports:
+      - "4040:4040"  # Spark Application UI
     depends_on:
       - kafka
+      - spark-master
+      - spark-history-server
 
   baseline:
     build:
@@ -80,3 +115,6 @@ services:
       - baseline
       - spark
     restart: on-failure
+
+volumes:
+  spark-logs:
